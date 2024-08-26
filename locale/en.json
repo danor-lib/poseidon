@@ -1,12 +1,6 @@
 {
-	"ArgumentError": {
-		"invalidType@proto": "'type' argument must be of type non-empty string, value: {{-type,valueType}}",
-		"invalidType@hades": "~[type] argument must be of type non-empty ~{string}, value {{-type,valueType@hades}}",
-		"invalidTypes@proto": "'types' argument must be of type string or an instance of Array, value: {{-types,valueType}}",
-		"invalidTypes@hades": "~[types] argument must be of type string or an instance of ~{Array}, value {{-types,valueType@hades}}",
-		"invalidDirConfig@proto": "'dirConfig' argument must be of type string, value: {{-dirConfig,valueType}}",
-		"invalidDirConfig@hades": "~[dirConfig] argument must be of type string, value {{-dirConfig,valueType@hades}}"
-	},
-	"forbiddenSet@proto": "modify configs in memory is not allowed, key: {{key}}, value: {{-value,valueType}}",
-	"forbiddenSet@hades": "modify configs in memory is not allowed, key {{key,value@hades}}}, value {{-value,valueType@hades}}"
+	"invalid-argument-type": "~[type] argument must be of type non-empty ~{string}, value {{-type,valueType}}",
+	"invalid-argument-types": "~[types] argument must be of type string or an instance of ~{Array}, value {{-types,valueType}}",
+	"invalid-argument-dir-config": "~[dirConfig] argument must be of type string, value {{-dirConfig,valueType}}",
+	"forbidden-set": "modify configs in memory is not allowed, key {{key,value}}}, value {{-value,valueType}}"
 }

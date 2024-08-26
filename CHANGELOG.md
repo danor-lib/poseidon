@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v8.3.0 - 2024.08.26 17
+* refactor: renew codes to adapt to latest `@nuogz/i18n`
+* docs: renew locale with latest `@nuogz/i18n`
+* deps: bump up dependencies
+* chore: renew develop environments
+
+
 ## v8.2.0 - 2024.03.06 01
 * (break) manually refactor `index.d.ts`, for export extendable `PoseidonInterface`
 * (break) change export content!

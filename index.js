@@ -10,7 +10,7 @@ import { loadI18NResource, TT } from '@nuogz/i18n';
 
 loadI18NResource('@nuogz/poseidon', resolve(dirname(fileURLToPath(import.meta.url)), 'locale'));
 
-const T = TT('@nuogz/poseidon');
+const { T } = TT('@nuogz/poseidon');
 
 
 
@@ -83,7 +83,7 @@ class ConfigType {
 		let slot;
 
 		if(typeof type != 'string' || !(slot = type.trim())) {
-			throw TypeError(T('ArgumentError.invalidType', { type }));
+			throw TypeError(T('invalid-argument-type', { type }));
 		}
 
 
@@ -342,11 +342,11 @@ export class PoseidonProto {
 	 */
 	constructor(dirConfig = process.cwd(), types = '') {
 		if(typeof types != 'string' && !(types instanceof Array)) {
-			throw TypeError(T('ArgumentError.invalidTypes', { types }));
+			throw TypeError(T('invalid-argument-types', { types }));
 		}
 
 		if(typeof dirConfig != 'string') {
-			throw TypeError(T('ArgumentError.invalidDirConfig', { dirConfig }));
+			throw TypeError(T('invalid-argument-dir-config', { dirConfig }));
 		}
 
 
@@ -368,7 +368,7 @@ export class PoseidonProto {
 				set(self, key, value) {
 					// would throw error in strict mode
 					if((function() { return !this; }())) {
-						throw Error(T('forbiddenSet', { key, value }));
+						throw Error(T('forbidden-set', { key, value }));
 					}
 				}
 			}

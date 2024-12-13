@@ -1,6 +1,6 @@
 {
 	"name": "@nuogz/poseidon",
-	"version": "8.3.0",
+	"version": "9.0.0",
 	"description": "Type-based config library",
 	"author": "DanoR",
 	"license": "LGPL-3.0-or-later",
@@ -30,14 +30,15 @@
 	},
 	"dependencies": {
 		"@nuogz/i18n": "^3.7.4",
+		"comment-json": "^4.2.5",
 		"escape-string-regexp": "^5.0.0"
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.9.1",
-		"@stylistic/eslint-plugin-js": "^2.6.4",
-		"@types/node": "^20.16.1",
-		"eslint": "^9.9.1",
-		"globals": "^15.9.0",
-		"typescript": "^5.5.4"
+		"@eslint/js": "^9.16.0",
+		"@stylistic/eslint-plugin-js": "^2.12.1",
+		"@types/node": "^20.17.10",
+		"eslint": "^9.16.0",
+		"globals": "^15.13.0",
+		"typescript": "^5.7.2"
 	}
 }

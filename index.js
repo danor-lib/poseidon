@@ -3,6 +3,7 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import EscapeStringRegexp from 'escape-string-regexp';
+import { parse as parseJSONWithComment, stringify as stringifyJSONWithComment } from 'comment-json';
 
 import { loadI18NResource, TT } from '@nuogz/i18n';
 
@@ -178,6 +179,18 @@ export class PoseidonProto {
 	proxy;
 
 
+	/**
+	 * mapping of each config file extensions
+	 * @type {Object.<string, ConfigRaw>}
+	 */
+	extensions$type = {};
+
+
+
+	parseJSON = parseJSONWithComment;
+	stringifyJSON = stringifyJSONWithComment;
+
+
 
 	/**
 	 * read the raw data of a config file, without any processing or only `JSON.parse`
@@ -189,17 +202,33 @@ export class PoseidonProto {
 		const { slot, symbolHidden, isDefault } = ConfigType.parse(type, true);
 
 
-		const nameFile =
-			symbolHidden +
-			this.prefixFile +
-			(isDefault ? '' : `.${slot}`) +
-			'.json';
+		let bufferConfig;
+		try {
+			const nameFile =
+				symbolHidden +
+				this.prefixFile +
+				(isDefault ? '' : `.${slot}`) +
+				'.json';
 
-		const bufferConfig = readFileSync(resolve(this.dirConfig, nameFile));
+			bufferConfig = readFileSync(resolve(this.dirConfig, nameFile));
+
+			this.extensions$type[type] = '.json';
+		}
+		catch {
+			const nameFile =
+				symbolHidden +
+				this.prefixFile +
+				(isDefault ? '' : `.${slot}`) +
+				'.jsonc';
+
+			bufferConfig = readFileSync(resolve(this.dirConfig, nameFile));
+
+			this.extensions$type[type] = '.jsonc';
+		}
 
 
 		return willParseJSON ?
-			JSON.parse(bufferConfig) :
+			this.parseJSON(bufferConfig) :
 			bufferConfig;
 	}
 
@@ -218,7 +247,7 @@ export class PoseidonProto {
 
 		try {
 			const buffer = this.buffers[slot] = this.read(type, false);
-			const config = this.configs[slot] = JSON.parse(buffer);
+			const config = this.configs[slot] = this.parseJSON(buffer.toString());
 
 			return config && typeof config == 'object' ?
 				deepFreeze(absolutizePath(config, this.dirConfig)) :
@@ -250,19 +279,19 @@ export class PoseidonProto {
 
 
 		if(willBackup) {
-			const regexBackup = new RegExp(`^${EscapeStringRegexp(nameFile)}\\.(\\d+)\\.backup\\.json$`);
+			const regexBackup = new RegExp(`^${EscapeStringRegexp(nameFile)}\\.(\\d+)\\.backup\\${this.extensions$type[type] ?? '.json'}$`);
 			const idsBackup = readdirSync(dirBackup)
 				.map(name => (name.match(regexBackup) || [])[1]).filter(n => n);
 			const idBackupMax = Math.max(0, ...idsBackup) + 1;
 
 			writeFileSync(
-				resolve(dirBackup, `${nameFile}.${idBackupMax}.backup.json`),
+				resolve(dirBackup, `${nameFile}.${idBackupMax}.backup${this.extensions$type[type] ?? '.json'}`),
 				this.read(type, false)
 			);
 		}
 
 
-		writeFileSync(resolve(this.dirConfig, `${nameFile}.json`), JSON.stringify(config, null, '\t'));
+		writeFileSync(resolve(this.dirConfig, `${nameFile}${this.extensions$type[type] ?? '.json'}`), this.stringifyJSON(config, null, '\t'));
 
 
 		return this;
@@ -315,9 +344,9 @@ export class PoseidonProto {
 		const files = readdirSync(this.dirConfig);
 
 
-		const regexDefault = new RegExp(`^\\.?${this.prefixFile}\\.json$`);
-		const regexConfig = new RegExp(`^\\.?${this.prefixFile}\\.(.*?)\\.json$`);
-		const regexBackup = new RegExp(`^\\.?${this.prefixFile}\\..*?\\.(\\d+)\\.backup\\.json$`);
+		const regexDefault = new RegExp(`^\\.?${this.prefixFile}\\.jsonc?$`);
+		const regexConfig = new RegExp(`^\\.?${this.prefixFile}\\.(.*?)\\.jsonc?$`);
+		const regexBackup = new RegExp(`^\\.?${this.prefixFile}\\..*?\\.(\\d+)\\.backup\\.jsonc?$`);
 
 
 		return files.map(file => {
@@ -339,14 +368,20 @@ export class PoseidonProto {
 	/**
 	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
 	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
+	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
 	 */
-	constructor(dirConfig = process.cwd(), types = '') {
+	constructor(dirConfig = process.cwd(), types = '', libJSON = 'comment-json') {
 		if(typeof types != 'string' && !(types instanceof Array)) {
 			throw TypeError(T('invalid-argument-types', { types }));
 		}
 
 		if(typeof dirConfig != 'string') {
 			throw TypeError(T('invalid-argument-dir-config', { dirConfig }));
+		}
+
+		if(libJSON == 'json') {
+			this.parseJSON = JSON.parse;
+			this.stringifyJSON = JSON.stringify;
 		}
 
 
@@ -401,8 +436,9 @@ export class Poseidon {
 	/**
 	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
 	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
+	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
 	 */
-	constructor(dirConfig = process.cwd(), types = '') {
-		return new PoseidonProto(dirConfig, types);
+	constructor(dirConfig = process.cwd(), types = '', libJSON) {
+		return new PoseidonProto(dirConfig, types, libJSON);
 	}
 }

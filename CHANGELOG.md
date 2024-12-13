@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v9.0.0 - 2024.12.13 14
+* feat: use `comment-json` by default to support JSON with comments
+* feat: support config files with `.jsonc` suffix:  
+  now will try to read files with `.jsonc` suffix instead after failing to read files with `.json` suffix
+* docs: renew types
+* deps: bump up dependencies
+
+
 ## v8.3.0 - 2024.08.26 17
 * refactor: renew codes to adapt to latest `@nuogz/i18n`
 * docs: renew locale with latest `@nuogz/i18n`

@@ -1,51 +1,13 @@
-export type ConfigRaw = any;
-export type ConfigFreezed = any;
-export type ConfigTypeRaw = string;
-
-
-declare class ConfigType {
-	/**
-	 * @param {string} type
-	 * @param {boolean} [willParseHidden = true]
-	 * @returns {ConfigType}
-	 */
-	static parse(type: string, willParseHidden?: boolean | undefined): ConfigType;
-
-	/**
-	 * @param {string} slot
-	 * @param {string} symbolHidden
-	 * @param {boolean} isDefault
-	 */
-	constructor(slot: string, symbolHidden: string, isDefault: boolean);
-
-	/**
-	 * config's slot
-	 * @type {string}
-	 */
-	slot: string;
-	/**
-	 * the symbol of hidden config
-	 * @type {string}
-	 */
-	symbolHidden: string;
-	/**
-	 * detect config is default config
-	 * @type {boolean}
-	 */
-	isDefault: boolean;
-}
-
-
-
+/** @typedef {any} ConfigRaw */
+/** @typedef {any} ConfigFreezed */
 export class PoseidonProto {
 	static ConfigType: typeof ConfigType;
-
 	/**
 	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
 	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
+	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
 	 */
-	constructor(dirConfig?: string | undefined, types?: string | (string | ConfigType)[] | undefined);
-
+	constructor(dirConfig?: string, types?: string | Array<ConfigTypeRaw | ConfigType>, libJSON?: "json" | "comment-json");
 	/**
 	 * instance
 	 * @type {PoseidonProto}
@@ -66,25 +28,33 @@ export class PoseidonProto {
 	 * @type {Object.<string, Buffer>}
 	 */
 	buffers: {
-		[x: string]: Buffer;
+		[x: string]: Buffer<ArrayBufferLike>;
 	};
 	/**
 	 * loaded JSON data
 	 * @type {Object.<string, ConfigRaw>}
 	 */
 	configs: {
-		[x: string]: ConfigRaw;
+		[x: string]: any;
 	};
-	/** @type {PoseidonInterface} */
-	proxy: PoseidonInterface;
-
+	/** @type {Poseidon} */
+	proxy: Poseidon;
+	/**
+	 * mapping of each config file extensions
+	 * @type {Object.<string, ConfigRaw>}
+	 */
+	extensions$type: {
+		[x: string]: any;
+	};
+	parseJSON: typeof parseJSONWithComment;
+	stringifyJSON: typeof stringifyJSONWithComment;
 	/**
 	 * read the raw data of a config file, without any processing or only `JSON.parse`
 	 * @param {ConfigTypeRaw|ConfigType} type
 	 * @param {boolean} [willParseJSON = true] `false`，detect to parse as JSON
 	 * @returns {ConfigRaw|Buffer} raw JSON data or buffer
 	 */
-	read(type: ConfigTypeRaw | ConfigType, willParseJSON?: boolean | undefined): ConfigRaw | Buffer;
+	read(type: ConfigTypeRaw | ConfigType, willParseJSON?: boolean): ConfigRaw | Buffer;
 	/**
 	 * load a config file. the config (recursive) will be fronzen
 	 * all marked file path values are converted to absolute paths
@@ -93,7 +63,7 @@ export class PoseidonProto {
 	 * @param {boolean} [isSafeLoad = false] detect throw error
 	 * @returns {ConfigFreezed}
 	 */
-	load(type: ConfigTypeRaw | ConfigType, isSafeLoad?: boolean | undefined): ConfigFreezed;
+	load(type: ConfigTypeRaw | ConfigType, isSafeLoad?: boolean): ConfigFreezed;
 	/**
 	 * save a config to file. support backup config file before saving
 	 * @param {ConfigTypeRaw|ConfigType} type
@@ -102,7 +72,7 @@ export class PoseidonProto {
 	 * @param {string} [dirBackup = this.dirConfig] dir of config backup
 	 * @returns {PoseidonProto}
 	 */
-	save(type: ConfigTypeRaw | ConfigType, config: ConfigRaw, willBackup?: boolean | undefined, dirBackup?: string | undefined): PoseidonProto;
+	save(type: ConfigTypeRaw | ConfigType, config: ConfigRaw, willBackup?: boolean, dirBackup?: string): PoseidonProto;
 	/**
 	 * @callback CallbackEdit
 	 * @param {ConfigRaw} configLoaded raw config
@@ -122,9 +92,6 @@ export class PoseidonProto {
 	 */
 	getTypesExist(): Array<ConfigTypeRaw>;
 }
-
-
-
 /**
  * - all loaded configs are read-only and cannot be modified directly
  * - one JSON file as a configuration unit
@@ -134,17 +101,49 @@ export class PoseidonProto {
  * - `$` is the reserved slot too. it used to access Poseidon Object
  * - supports hot modification in file units
  */
-export interface PoseidonInterface {
-	/** @type {PoseidonProto} */
-	$: PoseidonProto;
-
-	ConfigType: typeof ConfigType;
-
+export class Poseidon {
 	/**
 	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
 	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
+	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
 	 */
-	new(dirConfig?: string | undefined, types?: string | (string | ConfigType)[] | undefined): PoseidonInterface;
+	constructor(dirConfig?: string, types?: string | Array<ConfigTypeRaw | ConfigType>, libJSON?: "json" | "comment-json");
+	/** @type {PoseidonProto} */
+	$: PoseidonProto;
 }
-export interface PoseidonConstructor { }
-export const Poseidon: PoseidonConstructor;
+export type ConfigTypeRaw = string;
+export type ConfigRaw = any;
+export type ConfigFreezed = any;
+import { parse as parseJSONWithComment } from 'comment-json';
+import { stringify as stringifyJSONWithComment } from 'comment-json';
+/** @typedef {string} ConfigTypeRaw */
+declare class ConfigType {
+	/**
+	 * @param {string} type
+	 * @param {boolean} [willParseHidden = true]
+	 * @returns {ConfigType}
+	 */
+	static parse(type: string, willParseHidden?: boolean): ConfigType;
+	/**
+	 * @param {string} slot
+	 * @param {string} symbolHidden
+	 * @param {boolean} isDefault
+	 */
+	constructor(slot: string, symbolHidden: string, isDefault: boolean);
+	/**
+	 * config's slot
+	 * @type {string}
+	 */
+	slot: string;
+	/**
+	 * the symbol of hidden config
+	 * @type {string}
+	 */
+	symbolHidden: string;
+	/**
+	 * detect config is default config
+	 * @type {boolean}
+	 */
+	isDefault: boolean;
+}
+export {};

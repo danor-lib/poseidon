@@ -228,7 +228,7 @@ export class PoseidonProto {
 
 
 		return willParseJSON ?
-			this.parseJSON(bufferConfig) :
+			this.parseJSON(bufferConfig.toString()) :
 			bufferConfig;
 	}
 

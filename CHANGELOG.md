@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v9.0.1 - 2025.07.14 02
+* fix: fixed an issue where `comment-json.parse()` was not called correctly in `$.read()`.
+* chore: bump up dependencies
+* chore: update environments
+
+
 ## v9.0.0 - 2024.12.13 14
 * feat: use `comment-json` by default to support JSON with comments
 * feat: support config files with `.jsonc` suffix:  

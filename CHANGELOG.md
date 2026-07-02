@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## v10.0.0 - 2026.07.02 14
+* refactor!: rename package from `@nuogz/poseidon` to `@danor-lib/poseidon`
+* docs: **IMPORTANT!** update license to ***MIT***
+* refactor!: rename `PoseidonProto` to `Poseidon`, but it is exported as `Poseidon_`
+* refactor!: rename `Poseidon` to `PoseidonBox`, but it is exported as `Poseidon`
+* refactor!: all parameters of `Poseidon`'s constructor are consolidated into an options object
+* refactor!: absolutize path supports more options
+* refactor!: backup filename format changes from `config.apple.1.backup.json` to `config.apple.backup1.json`
+* refactor!: reading hidden files no longer requires prior declaration in preloads. Hidden files are now part of the load priority order
+* refactor!: rename `#getTypesExist()` to `#selectExistTypes()`
+* refactor!: remove `comment-json`. It can be reintroduced via options, see README for details
+* refactor!: remove infrequently used `@nuogz/i18n`
+* docs: add README and English version
+* docs: improve types and export
+* docs: add error code reference table
+* refactor!: due to a change in design philosophy, remove all error message text
+  * in my design philosophy, an error should only contain a code and associated data. Text-based message should be rendered by the terminal (including i18n and terminal highlighting)
+* regular!: bump up Node.js requirement to `>=26`
+  * this requirement does not mean the library cannot run on older versions of Node.js. It only indicates the major version I am currently using
+* regular: update enviroment
+* regular: bump up dependencies
+
+
 ## v9.0.1 - 2025.07.14 02
 * fix: fixed an issue where `comment-json.parse()` was not called correctly in `$.read()`.
 * chore: bump up dependencies

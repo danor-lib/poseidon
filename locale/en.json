@@ -1,6 +1,0 @@
-{
-	"invalid-argument-type": "~[type] argument must be of type non-empty ~{string}, value {{-type,valueType}}",
-	"invalid-argument-types": "~[types] argument must be of type string or an instance of ~{Array}, value {{-types,valueType}}",
-	"invalid-argument-dir-config": "~[dirConfig] argument must be of type string, value {{-dirConfig,valueType}}",
-	"forbidden-set": "modify configs in memory is not allowed, key {{key,value}}}, value {{-value,valueType}}"
-}

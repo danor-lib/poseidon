@@ -1,149 +1,129 @@
-/** @typedef {any} ConfigRaw */
-/** @typedef {any} ConfigFreezed */
-export class PoseidonProto {
-	static ConfigType: typeof ConfigType;
-	/**
-	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
-	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
-	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
-	 */
-	constructor(dirConfig?: string, types?: string | Array<ConfigTypeRaw | ConfigType>, libJSON?: "json" | "comment-json");
-	/**
-	 * instance
-	 * @type {PoseidonProto}
-	 */
-	$: PoseidonProto;
-	/**
-	 * the prefix of config file
-	 * @type {string}
-	 */
+import type { AbsolutizePathOption, PoseidonOption, SaveOption, EditHandle } from '../types.js';
+
+
+
+/** Information about a loaded config/data file */
+interface LoadedDataInfo {
+	prefix: string;
+	extension: string;
+}
+
+/** Information about a file found by `selectExistTypes` */
+interface FileInfo {
+	hidden: boolean;
+	type: string;
+	backup: number | false;
+	ext: string;
+	file: string;
+}
+
+/** Result of `selectExistTypes` */
+type ExistTypesResult = Record<string, {
+	files: FileInfo[];
+	backups: FileInfo[];
+}>;
+
+export class Poseidon<DataType = any> {
+	/** Instance reference */
+	$: Poseidon<DataType>;
+
+	/** The prefix of config/data file */
 	prefixFile: string;
+
+	/** Directory of configs/datas */
+	dirnData: string;
+
+	/** Whether to prefer default config/data when getting */
+	preferDefault: boolean;
+
+	/** Whether to freeze config/data */
+	willFreeze: boolean;
+
+	/** Options for path absolutization */
+	optionsPathAbsolutize: AbsolutizePathOption;
+
+	/** Behavior when setting */
+	howAssign: 'throw' | 'ignore';
+
+	/** Raw loaded config/data buffers */
+	buffers$type: Record<string, Buffer>;
+
+	/** Loaded config/data */
+	datas$type: Record<string, DataType>;
+
+	/** Proxy instance */
+	proxy: Poseidon<DataType>;
+
+	/** Mapping of config/data file extensions */
+	extensions$type: Record<string, string>;
+
+	/** Info of loaded types */
+	infos$type: Record<string, LoadedDataInfo>;
+
+	/** Config/data parsing function */
+	parser: (buffer: Buffer, poseidon: Poseidon<DataType>) => DataType;
+
+	/** Config/data packing function */
+	packer: (data: DataType, poseidon: Poseidon<DataType>) => string | ArrayBufferView;
+
+	/** File extensions for reading */
+	extensions: string[];
+
 	/**
-	 * dir of configs
-	 * @type {string}
+	 * Create a Poseidon instance
 	 */
-	dirConfig: string;
+	constructor(options?: PoseidonOption<DataType>);
+
 	/**
-	 * loaded file buffer data
-	 * @type {Object.<string, Buffer>}
+	 * Read a config/data file, parsing it as config/data
 	 */
-	buffers: {
-		[x: string]: Buffer<ArrayBufferLike>;
-	};
+	read(type: string, willParse?: true): DataType;
 	/**
-	 * loaded JSON data
-	 * @type {Object.<string, ConfigRaw>}
+	 * Read a config/data file, returning the raw Buffer
 	 */
-	configs: {
-		[x: string]: any;
-	};
-	/** @type {Poseidon} */
-	proxy: Poseidon;
+	read(type: string, willParse: false): Buffer;
+
 	/**
-	 * mapping of each config file extensions
-	 * @type {Object.<string, ConfigRaw>}
+	 * Load a config/data file. The config/data will be frozen recursively.
+	 * All marked file path values are converted to absolute paths.
+	 * Reloading is repeatable.
+	 * @param willThrow When `false`, suppress errors and return `undefined`
 	 */
-	extensions$type: {
-		[x: string]: any;
-	};
-	parseJSON: typeof parseJSONWithComment;
-	stringifyJSON: typeof stringifyJSONWithComment;
+	load(type: string, willThrow?: boolean): DataType | undefined;
+
 	/**
-	 * read the raw data of a config file, without any processing or only `JSON.parse`
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {boolean} [willParseJSON = true] `false`，detect to parse as JSON
-	 * @returns {ConfigRaw|Buffer} raw JSON data or buffer
+	 * Save config/data to a file. Supports backup before saving.
 	 */
-	read(type: ConfigTypeRaw | ConfigType, willParseJSON?: boolean): ConfigRaw | Buffer;
+	save(type: string, data: DataType, options?: SaveOption): Poseidon<DataType>;
+
 	/**
-	 * load a config file. the config (recursive) will be fronzen
-	 * all marked file path values are converted to absolute paths
-	 * reloading is repeatable
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {boolean} [isSafeLoad = false] detect throw error
-	 * @returns {ConfigFreezed}
+	 * Modify, save and reload a config/data.
+	 * Supports returning a Promise for async modification.
 	 */
-	load(type: ConfigTypeRaw | ConfigType, isSafeLoad?: boolean): ConfigFreezed;
+	edit(type: string, handle: EditHandle<DataType>): Poseidon<DataType> | Promise<Poseidon<DataType>>;
+
 	/**
-	 * save a config to file. support backup config file before saving
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {ConfigRaw} config the config which data type supported by 'fs.writeFile'
-	 * @param {boolean} [willBackup = false] `false`，detect backup
-	 * @param {string} [dirBackup = this.dirConfig] dir of config backup
-	 * @returns {PoseidonProto}
+	 * Resolve all `_`-prefixed key values in a config/data object to absolute paths
 	 */
-	save(type: ConfigTypeRaw | ConfigType, config: ConfigRaw, willBackup?: boolean, dirBackup?: string): PoseidonProto;
+	absolutizePath(data: object): object;
+
 	/**
-	 * @callback CallbackEdit
-	 * @param {ConfigRaw} configLoaded raw config
-	 * @param {ConfigType} typeConfig
-	 * @param {PoseidonProto} self
-	 * @returns {ConfigRaw}
+	 * Get available types
 	 */
-	/** modify, save and reaload a config
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {CallbackEdit} callbackEdit support Promise
-	 * @returns {PoseidonProto}
-	 */
-	edit(type: ConfigTypeRaw | ConfigType, callbackEdit: (configLoaded: ConfigRaw, typeConfig: ConfigType, self: PoseidonProto) => ConfigRaw): PoseidonProto;
-	/**
-	 * get available types
-	 * @returns {Array.<ConfigTypeRaw>}
-	 */
-	getTypesExist(): Array<ConfigTypeRaw>;
+	selectExistTypes(includeBackup?: boolean): ExistTypesResult;
 }
+
+export class PoseidonBox<DataType = any> {
+	/** Instance reference */
+	$: Poseidon<DataType>;
+
+	/**
+	 * Create a Poseidon instance
+	 */
+	constructor(options?: PoseidonOption<DataType>);
+}
+
 /**
- * - all loaded configs are read-only and cannot be modified directly
- * - one JSON file as a configuration unit
- * - all configs storage in the same directory.
- * - default config is `config.json'. classified config is `config.*.json`
- * - `_` is the reserved slot of the default config
- * - `$` is the reserved slot too. it used to access Poseidon Object
- * - supports hot modification in file units
+ * Check whether the value is a Poseidon instance
  */
-export class Poseidon {
-	/**
-	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
-	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
-	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
-	 */
-	constructor(dirConfig?: string, types?: string | Array<ConfigTypeRaw | ConfigType>, libJSON?: "json" | "comment-json");
-	/** @type {PoseidonProto} */
-	$: PoseidonProto;
-}
-export type ConfigTypeRaw = string;
-export type ConfigRaw = any;
-export type ConfigFreezed = any;
-import { parse as parseJSONWithComment } from 'comment-json';
-import { stringify as stringifyJSONWithComment } from 'comment-json';
-/** @typedef {string} ConfigTypeRaw */
-declare class ConfigType {
-	/**
-	 * @param {string} type
-	 * @param {boolean} [willParseHidden = true]
-	 * @returns {ConfigType}
-	 */
-	static parse(type: string, willParseHidden?: boolean): ConfigType;
-	/**
-	 * @param {string} slot
-	 * @param {string} symbolHidden
-	 * @param {boolean} isDefault
-	 */
-	constructor(slot: string, symbolHidden: string, isDefault: boolean);
-	/**
-	 * config's slot
-	 * @type {string}
-	 */
-	slot: string;
-	/**
-	 * the symbol of hidden config
-	 * @type {string}
-	 */
-	symbolHidden: string;
-	/**
-	 * detect config is default config
-	 * @type {boolean}
-	 */
-	isDefault: boolean;
-}
-export {};
+export function isPoseidon(value: any): value is Poseidon<any>;

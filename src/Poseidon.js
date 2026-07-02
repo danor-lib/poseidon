@@ -1,27 +1,33 @@
-import { readdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 
 import EscapeStringRegexp from 'escape-string-regexp';
-import { parse as parseJSONWithComment, stringify as stringifyJSONWithComment } from 'comment-json';
 
-import { loadI18NResource, TT } from '@nuogz/i18n';
+import { RichError } from '@danor-lib/error';
 
-
-
-loadI18NResource('@nuogz/poseidon', resolve(dirname(fileURLToPath(import.meta.url)), 'locale'));
-
-const { T } = TT('@nuogz/poseidon');
+/** @import { PoseidonOption, AbsolutizePathOption, SaveOption, EditHandle } from '../types.ts' */
 
 
 
+/**
+ * Check whether a value is a non-null object
+ * @param {any} value
+ * @returns {boolean}
+ */
+const isObject = (value) => value != null && typeof value == 'object';
+
+
+/**
+ * Deep freeze an object recursively
+ * @param {object} object
+ * @returns {object} The frozen object
+ */
 const deepFreeze = object => {
-	// freeze properties before freeze self
 	Object.getOwnPropertyNames(object)
 		.forEach(name => {
 			const prop = object[name];
 
-			if(typeof prop == 'object' && prop !== null) {
+			if(isObject(prop)) {
 				deepFreeze(prop);
 			}
 		});
@@ -29,269 +35,614 @@ const deepFreeze = object => {
 	return Object.freeze(object);
 };
 
-const absolutizePathObject = (object, dir) => {
-	const objectParsed = {};
-
-	Object.entries(object).forEach(([key, value]) => {
-		if(typeof value == 'string') {
-			objectParsed[key] = resolve(dir, value);
-		}
-		else if(value && typeof value == 'object') {
-			objectParsed[key] = absolutizePathObject(value, dir);
-		}
-		else {
-			objectParsed[key] = value;
-		}
-	});
-
-	return objectParsed;
-};
-
-const absolutizePath = (config, dir) => {
-	Object.entries(config).forEach(([key, value]) => {
-		if(key.startsWith('_')) {
-			const keyParsed = key.replace(/^_/, '');
-
-			if(typeof value == 'string') {
-				config[keyParsed] = resolve(dir, value);
-			}
-			// if the value is an object, and the key is prefixed by `_`, all child values (including recursive) of this value are regarded as paths
-			else if(value && typeof value == 'object') {
-				config[keyParsed] = absolutizePathObject(value, dir);
-			}
-		}
-		else if(value && typeof value == 'object') {
-			absolutizePath(value, dir);
-		}
-	});
-
-	return config;
-};
 
 
-/** @typedef {string} ConfigTypeRaw */
-
-class ConfigType {
+/** @template DataType */
+export class Poseidon {
 	/**
-	 * @param {string} type
-	 * @param {boolean} [willParseHidden = true]
-	 * @returns {ConfigType}
-	 */
-	static parse(type, willParseHidden = true) {
-		if(type instanceof ConfigType) { return type; }
-
-
-		let slot;
-
-		if(typeof type != 'string' || !(slot = type.trim())) {
-			throw TypeError(T('invalid-argument-type', { type }));
-		}
-
-
-		const isHidden = willParseHidden && slot.startsWith('.');
-
-		if(isHidden) { slot = slot.replace('.', ''); }
-
-
-		return new ConfigType(
-			slot,
-			isHidden ? '.' : '',
-			slot == '_'
-		);
-	}
-
-
-	/**
-	 * config's slot
-	 * @type {string}
-	 */
-	slot;
-	/**
-	 * the symbol of hidden config
-	 * @type {string}
-	 */
-	symbolHidden;
-	/**
-	 * detect config is default config
-	 * @type {boolean}
-	 */
-	isDefault;
-
-
-	/**
-	 * @param {string} slot
-	 * @param {string} symbolHidden
-	 * @param {boolean} isDefault
-	 */
-	constructor(slot, symbolHidden, isDefault) {
-		this.slot = slot;
-		this.symbolHidden = symbolHidden;
-		this.isDefault = isDefault;
-	}
-}
-
-
-
-/** @typedef {any} ConfigRaw */
-/** @typedef {any} ConfigFreezed */
-
-
-
-export class PoseidonProto {
-	static ConfigType = ConfigType;
-
-
-	/**
-	 * instance
-	 * @type {PoseidonProto}
+	 * Instance reference
+	 * @type {Poseidon<DataType>}
 	 */
 	$ = this;
 
+
 	/**
-	 * the prefix of config file
+	 * The prefix of config/data file
 	 * @type {string}
 	 */
 	prefixFile = 'config';
 
-
-
 	/**
-	 * dir of configs
+	 * Directory of configs/datas
 	 * @type {string}
 	 */
-	dirConfig;
+	dirnData = process.cwd();
+
 
 	/**
-	 * loaded file buffer data
-	 * @type {Object.<string, Buffer>}
+	 * Whether to prefer default config/data when getting
+	 * @type {boolean}
 	 */
-	buffers = {};
+	preferDefault = true;
 
 	/**
-	 * loaded JSON data
-	 * @type {Object.<string, ConfigRaw>}
+	 * Whether to freeze config/data
+	 * @type {boolean}
 	 */
-	configs = {};
+	willFreeze = true;
+
+
+	/** @type {AbsolutizePathOption} */
+	optionsPathAbsolutize = {
+		/** Whether to convert relative paths to absolute paths */
+		enable: true,
+
+		/** The prefix of keys to absolutize */
+		prefix: '_',
+
+		/** Whether to overwrite config/data */
+		overwrite: true,
+
+		/** The path between the config/data directory and the resolved absolute path */
+		path: '',
+	};
+
+
+	/**
+	 * Behavior when setting
+	 * @type {'throw' | 'ignore'}
+	 */
+	howAssign = 'throw';
 
 
 
-	/** @type {Poseidon} */
+	/**
+	 * Raw loaded config/data
+	 * @type {Record<string, Buffer>}
+	 */
+	buffers$type = {};
+
+	/**
+	 * Loaded config/data
+	 * @type {Record<string, DataType>}
+	 */
+	datas$type = {};
+
+
+
+	/** @type {Poseidon<DataType>} */
 	proxy;
 
 
 	/**
-	 * mapping of each config file extensions
-	 * @type {Object.<string, ConfigRaw>}
+	 * Mapping of config/data file extensions
+	 * @type {Record<string, string>}
 	 */
 	extensions$type = {};
 
+	/** @type {Record<string, { hidden: string, ext: string }>} */
+	infos$type = {};
 
 
-	parseJSON = parseJSONWithComment;
-	stringifyJSON = stringifyJSONWithComment;
+	/** @type {(buffer: Buffer, poseidon: Poseidon<DataType>) => DataType} */
+	parser = (buffer) => JSON.parse(buffer.toString());
+	/** @type {(data: DataType, poseidon: Poseidon<DataType>) => string | ArrayBufferView} */
+	packer = (data) => JSON.stringify(data, null, '\t');
+
+	/** @type {string[]} */
+	extensions = ['.json'];
+
+
+	/**
+	 * Create a Poseidon instance
+	 * @param {PoseidonOption<DataType>} [options]
+	 */
+	constructor(options) {
+		if(options != null) {
+			if(!isObject(options)) {
+				throw new RichError({
+					code: 'invalid-options', at: 'poseidon/Poseidon#constructor(options)',
+					data: { options },
+				});
+			}
+		}
+		else { options = {}; }
+
+
+
+		const prefixFile = options.prefix;
+		if(prefixFile != null) {
+			if(typeof prefixFile != 'string') {
+				throw new RichError({
+					code: 'invalid-prefix-file', at: 'poseidon/Poseidon#constructor(options.prefix)',
+					data: { prefix: prefixFile },
+				});
+			}
+
+
+			this.prefixFile = prefixFile.trim();
+		}
+
+
+
+		const dirnData = options.dirn;
+		if(dirnData != null) {
+			if(typeof dirnData != 'string') {
+				throw new RichError({
+					code: 'invalid-dirn-data', at: 'poseidon/Poseidon#constructor(options.dirn)',
+					data: { dirn: dirnData },
+				});
+			}
+
+
+			this.dirnData = dirnData.trim();
+		}
+
+
+
+		let typesPreload = options.preloads;
+		if(typesPreload != null) {
+			const typeOption = typeof typesPreload;
+
+			if(typeOption != 'string' && !Array.isArray(typesPreload)) {
+				throw new RichError({
+					code: 'invalid-preload', at: 'poseidon/Poseidon#constructor(options.preload)',
+					data: { types: typesPreload },
+				});
+			}
+
+
+			if(typeOption == 'string') {
+				typesPreload = typesPreload.trim().split(',');
+			}
+		}
+		else { typesPreload = []; }
+
+		typesPreload = typesPreload.map((type, index) => {
+			const typeType = typeof type;
+
+			if(typeType == 'string') { return type.trim(); }
+
+			if(typeType == 'number' && !Number.isNaN(typeType)) { return String(type); }
+
+			if(type == null) { return null; }
+
+
+			throw new RichError({
+				code: 'invalid-preload-type', at: 'poseidon/Poseidon#constructor(options.preload)',
+				data: { type, types: typesPreload, index }
+			});
+		}).filter(Boolean);
+
+
+
+		const parser = options.parser;
+		if(parser != null) {
+			if(typeof parser != 'function') {
+				throw new RichError({
+					code: 'invalid-parser', at: 'poseidon/Poseidon#constructor(options.parser)',
+					data: { parser },
+				});
+			}
+
+
+			this.parser = parser;
+		}
+
+
+
+		const packer = options.packer;
+		if(packer != null) {
+			if(typeof packer != 'function') {
+				throw new RichError({
+					code: 'invalid-packer', at: 'poseidon/Poseidon#constructor(options.packer)',
+					data: { packer },
+				});
+			}
+
+
+			this.packer = packer;
+		}
+
+
+
+		const extensions = options.exts;
+		if(extensions != null) {
+			if(typeof extensions != 'function') {
+				throw new RichError({
+					code: 'invalid-extensions', at: 'poseidon/Poseidon#constructor(options.exts)',
+					data: { extensions },
+				});
+			}
+
+
+			this.extensions = extensions;
+		}
+
+
+
+		const preferDefault = options.preferDefault;
+		if(preferDefault != null) {
+			if(typeof preferDefault != 'boolean') {
+				throw new RichError({
+					code: 'invalid-prefer-default', at: 'poseidon/Poseidon#constructor(options.preferDefault)',
+					data: { preferDefault },
+				});
+			}
+
+
+			this.preferDefault = preferDefault;
+		}
+
+
+
+		const willFreeze = options.willFreeze;
+		if(willFreeze != null) {
+			if(typeof willFreeze != 'boolean') {
+				throw new RichError({
+					code: 'invalid-prefer-default', at: 'poseidon/Poseidon#constructor(options.willFreeze)',
+					data: { willFreeze },
+				});
+			}
+
+
+			this.willFreeze = willFreeze;
+		}
+
+
+		const absolutize = options.absolutize;
+		if(absolutize != null) {
+			if(!isObject(absolutize)) {
+				throw new RichError({
+					code: 'invalid-absolutize-option', at: 'poseidon/Poseidon#constructor(options.absolutize)',
+					data: { absolutize },
+				});
+			}
+
+			const enable = absolutize.enable;
+			if(enable != null) {
+				if(typeof enable != 'boolean') {
+					throw new RichError({
+						code: 'invalid-absolutize-option-enable', at: 'poseidon/Poseidon#constructor(options.absolutize.enable)',
+						data: { enable },
+					});
+				}
+
+
+				this.optionsPathAbsolutize.enable = enable;
+			}
+
+			const prefix = absolutize.prefix;
+			if(prefix != null) {
+				if(typeof prefix != 'string') {
+					throw new RichError({
+						code: 'invalid-absolutize-option-prefix', at: 'poseidon/Poseidon#constructor(options.absolutize.prefix)',
+						data: { prefix },
+					});
+				}
+
+
+				this.optionsPathAbsolutize.prefix = prefix.trim();
+			}
+
+			const overwrite = absolutize.overwrite;
+			if(overwrite != null) {
+				if(typeof overwrite != 'boolean') {
+					throw new RichError({
+						code: 'invalid-absolutize-option-overwrite', at: 'poseidon/Poseidon#constructor(options.absolutize.overwrite)',
+						data: { overwrite },
+					});
+				}
+
+
+				this.optionsPathAbsolutize.overwrite = overwrite;
+			}
+
+
+			const path = absolutize.path;
+			if(path != null) {
+				if(typeof path != 'string') {
+					throw new RichError({
+						code: 'invalid-absolutize-option-path', at: 'poseidon/Poseidon#constructor(options.absolutize.path)',
+						data: { path },
+					});
+				}
+
+
+				this.optionsPathAbsolutize.path = path.trim();
+			}
+		}
+
+
+
+		const howAssign = options.howAssign;
+		if(howAssign != null) {
+			if(typeof howAssign != 'string' || !['ignore', 'throw'].includes(howAssign)) {
+				throw new RichError({
+					code: 'invalid-how-assign', at: 'poseidon/Poseidon#constructor(options.howAssign)',
+					data: { howAssign },
+				});
+			}
+
+
+			this.howAssign = howAssign;
+		}
+
+
+
+		this.proxy = new Proxy(this,
+			{
+				get(self, key) {
+					if(key == '$') { return self; }
+					if(key == 'constructor') { return self.constructor; }
+
+
+					const datas = self.datas$type;
+					const dataDefault = '_' in datas ? datas._ : self.load('_');
+					if(self.preferDefault) {
+						if(isObject(dataDefault) && key in dataDefault) { return dataDefault[key]; }
+
+						if(key in datas) { return datas[key]; }
+					}
+					else {
+						if(key in datas) { return datas[key]; }
+
+						if(isObject(dataDefault) && key in dataDefault) { return dataDefault[key]; }
+					}
+
+					return self.load(key);
+				},
+				set(self, key, value) {
+					if(self.howAssign == 'throw') {
+						throw new RichError({
+							code: 'forbidden-set', at: 'poseidon/Poseidon#proxy.set',
+							data: { key, value },
+						});
+					}
+				}
+			}
+		);
+
+
+		for(const type of typesPreload) {
+			this.load(type);
+		}
+
+
+		return this.proxy;
+	}
 
 
 
 	/**
-	 * read the raw data of a config file, without any processing or only `JSON.parse`
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {boolean} [willParseJSON = true] `false`，detect to parse as JSON
-	 * @returns {ConfigRaw|Buffer} raw JSON data or buffer
+	 * Read a config/data file
+	 *
+	 * @overload
+	 * @param {string} type
+	 * @param {true} willParse When `true`, parse buffer as config/data
+	 * @returns {DataType}
+	 *
+	 * @overload
+	 * @param {string} type
+	 * @param {false} willParse When `false`, return raw Buffer
+	 * @returns {Buffer}
+	 *
+	 *
+	 * @param {string} type
+	 * @param {boolean} [willParse = true] When `true`, parse buffer as config/data; when `false`, return raw Buffer
 	 */
-	read(type, willParseJSON = true) {
-		const { slot, symbolHidden, isDefault } = ConfigType.parse(type, true);
-
-
-		let bufferConfig;
-		try {
-			const nameFile =
-				symbolHidden +
-				this.prefixFile +
-				(isDefault ? '' : `.${slot}`) +
-				'.json';
-
-			bufferConfig = readFileSync(resolve(this.dirConfig, nameFile));
-
-			this.extensions$type[type] = '.json';
-		}
-		catch {
-			const nameFile =
-				symbolHidden +
-				this.prefixFile +
-				(isDefault ? '' : `.${slot}`) +
-				'.jsonc';
-
-			bufferConfig = readFileSync(resolve(this.dirConfig, nameFile));
-
-			this.extensions$type[type] = '.jsonc';
+	read(type, willParse = true) {
+		if(typeof type != 'string') {
+			throw new RichError({
+				code: 'invalid-type', at: 'poseidon/Poseidon#read(1:type)',
+				data: { type },
+			});
 		}
 
+		type = type.trim();
 
-		return willParseJSON ?
-			this.parseJSON(bufferConfig.toString()) :
-			bufferConfig;
+
+		const prefixes = [`.${this.prefixFile}`, this.prefixFile];
+		const extensions = this.extensions;
+
+
+		/** @type {Buffer} */
+		let buffer;
+		let errorLast;
+		for(const prefix of prefixes) {
+			for(const extension of extensions) {
+				try {
+					const nameFile = `${prefix}${type == '_' ? '' : `.${type}`}${extension}`;
+
+					buffer = readFileSync(resolvePath(this.dirnData, nameFile));
+
+					this.infos$type[type] = { prefix, extension };
+
+					break;
+				}
+				catch(error) {
+					errorLast = error;
+				}
+			}
+		}
+
+		if(!buffer) { throw errorLast; }
+
+
+		return willParse ? this.parser(buffer, this) : buffer;
 	}
 
 
 	/**
-	 * load a config file. the config (recursive) will be fronzen
-	 * all marked file path values are converted to absolute paths
-	 * reloading is repeatable
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {boolean} [isSafeLoad = false] detect throw error
-	 * @returns {ConfigFreezed}
+	 * Load a config/data file. The config/data will be frozen recursively
+	 * All marked file path values are converted to absolute paths
+	 * Reloading is repeatable
+	 * @param {string} type
+	 * @param {boolean} [willThrow = false] When `false`, suppress errors and return `undefined`
+	 * @returns {DataType|undefined}
 	 */
-	load(type, isSafeLoad = false) {
-		const { slot } = ConfigType.parse(type, true);
+	load(type, willThrow = false) {
+		if(typeof type != 'string') {
+			throw new RichError({
+				code: 'invalid-type', at: 'poseidon/Poseidon#load(type)',
+				data: { type },
+			});
+		}
+
+		type = type.trim();
 
 
 		try {
-			const buffer = this.buffers[slot] = this.read(type, false);
-			const config = this.configs[slot] = this.parseJSON(buffer.toString());
+			const buffer = this.read(type, false);
 
-			return config && typeof config == 'object' ?
-				deepFreeze(absolutizePath(config, this.dirConfig)) :
-				config;
+			let data = this.parser(buffer, this);
+			if(isObject(data)) {
+				if(this.optionsPathAbsolutize.enable) {
+					data = this.absolutizePath(data);
+				}
+
+				if(this.willFreeze) {
+					data = deepFreeze(data);
+				}
+			}
+
+			this.buffers$type[type] = buffer;
+			this.datas$type[type] = data;
+
+			return data;
 		}
 		catch(error) {
-			if(isSafeLoad) { return undefined; }
+			if(willThrow) { throw error; }
 
-			throw error;
+			return undefined;
 		}
 	}
 
 
 	/**
-	 * save a config to file. support backup config file before saving
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {ConfigRaw} config the config which data type supported by 'fs.writeFile'
-	 * @param {boolean} [willBackup = false] `false`，detect backup
-	 * @param {string} [dirBackup = this.dirConfig] dir of config backup
-	 * @returns {PoseidonProto}
+	 * Save config/data to a file. Supports backup before saving
+	 * @param {string} type
+	 * @param {DataType} data The config/data
+	 * @param {SaveOption} [options]
+	 * @returns {Poseidon<DataType>}
 	 */
-	save(type, config, willBackup = false, dirBackup = this.dirConfig) {
-		const { slot, symbolHidden, isDefault } = ConfigType.parse(type, true);
+	save(type, data, options) {
+		if(typeof type != 'string') {
+			throw new RichError({
+				code: 'invalid-type', at: 'poseidon/Poseidon#save(1:type)',
+				data: { type },
+			});
+		}
 
-		const nameFile =
-			symbolHidden +
-			this.prefixFile +
-			(isDefault ? '' : `.${slot}`);
+		type = type.trim();
 
+
+
+		if(options != null) {
+			if(!isObject(options)) {
+				throw new RichError({
+					code: 'invalid-options', at: 'poseidon/Poseidon#save(3:options)',
+					data: { options },
+				});
+			}
+		}
+		else { options = {}; }
+
+
+		let willBackup = options.willBackup;
+		if(willBackup != null) {
+			if(typeof willBackup != 'boolean') {
+				throw new RichError({
+					code: 'invalid-options-willBackup', at: 'poseidon/Poseidon#save(3:options.willBackup)',
+					data: { willBackup },
+				});
+			}
+		}
+		else { willBackup = false; }
+
+		let dirnBackup = options.dirnBackup;
+		if(dirnBackup != null) {
+			if(typeof dirnBackup != 'string') {
+				throw new RichError({
+					code: 'invalid-options-dirn', at: 'poseidon/Poseidon#save(3:options.dirnBackup)',
+					data: { dirnBackup },
+				});
+			}
+
+
+			dirnBackup = dirnBackup.trim();
+		}
+		else { dirnBackup = this.dirnData; }
+
+		let padStartBackup = options.padBackup;
+		if(padStartBackup != null) {
+			if(typeof padStartBackup != 'string') {
+				throw new RichError({
+					code: 'invalid-options-dirn', at: 'poseidon/Poseidon#save(3:options.padBackup)',
+					data: { padBackup: padStartBackup },
+				});
+			}
+
+
+			padStartBackup = Number(padStartBackup);
+		}
+		else { padStartBackup = 1; }
+
+
+		let prefixOption = options.prefix;
+		if(prefixOption != null) {
+			if(typeof prefixOption != 'string') {
+				throw new RichError({
+					code: 'invalid-options-prefix', at: 'poseidon/Poseidon#save(3:options.prefix)',
+					data: { prefix: prefixOption },
+				});
+			}
+
+
+			prefixOption = prefixOption.trim();
+		}
+
+
+		let extensionOption = options.ext;
+		if(extensionOption != null) {
+			if(typeof extensionOption != 'string') {
+				throw new RichError({
+					code: 'invalid-options-ext', at: 'poseidon/Poseidon#save(3:options.ext)',
+					data: { extension: extensionOption },
+				});
+			}
+
+
+			extensionOption = extensionOption.trim();
+		}
+
+
+
+		const info = this.infos$type[type];
+
+
+		// Options > Info > Default
+		const prefix = prefixOption ?? info?.prefix ?? this.prefixFile;
+		const extension = extensionOption ?? info?.extension ?? this.extensions[0];
+
+		const nameFile = `${prefix}${type == '_' ? '' : `.${type}`}`;
+
+		const fileSave = resolvePath(this.dirnData, `${nameFile}${extension}`);
 
 		if(willBackup) {
-			const regexBackup = new RegExp(`^${EscapeStringRegexp(nameFile)}\\.(\\d+)\\.backup\\${this.extensions$type[type] ?? '.json'}$`);
-			const idsBackup = readdirSync(dirBackup)
+			const regexBackup = new RegExp(`^${EscapeStringRegexp(nameFile)}\\.(\\d+)\\.backup\\${extension}$`);
+			const idsBackup = readdirSync(dirnBackup)
 				.map(name => (name.match(regexBackup) || [])[1]).filter(n => n);
-			const idBackupMax = Math.max(0, ...idsBackup) + 1;
+			const idBackup = Math.max(0, ...idsBackup) + 1;
 
-			writeFileSync(
-				resolve(dirBackup, `${nameFile}.${idBackupMax}.backup${this.extensions$type[type] ?? '.json'}`),
-				this.read(type, false)
+			copyFileSync(
+				fileSave,
+				resolvePath(dirnBackup, `${nameFile}.backup${String(idBackup).padStart(padStartBackup, '0')}${extension}`),
 			);
 		}
 
 
-		writeFileSync(resolve(this.dirConfig, `${nameFile}${this.extensions$type[type] ?? '.json'}`), this.stringifyJSON(config, null, '\t'));
+		writeFileSync(fileSave, this.packer(data, this));
 
 
 		return this;
@@ -299,36 +650,30 @@ export class PoseidonProto {
 
 
 	/**
-	 * @callback CallbackEdit
-	 * @param {ConfigRaw} configLoaded raw config
-	 * @param {ConfigType} typeConfig
-	 * @param {PoseidonProto} self
-	 * @returns {ConfigRaw}
+	 * Modify, save and reload a config/data
+	 * @param {string} type
+	 * @param {EditHandle<DataType>} handle Supports returning a Promise for async modification
+	 * @returns {Poseidon<DataType>}
 	 */
-	/** modify, save and reaload a config
-	 * @param {ConfigTypeRaw|ConfigType} type
-	 * @param {CallbackEdit} callbackEdit support Promise
-	 * @returns {PoseidonProto}
-	 */
-	edit(type, callbackEdit) {
-		const config = this.read(type);
+	edit(type, handle) {
+		const dataRaw = this.read(type, false);
+		const dataOld = this.parser(dataRaw, this);
 
 
-		const raw = callbackEdit(config, type, this);
+		const result = handle(dataOld, dataRaw, type, this);
 
-		if(raw instanceof Promise) {
-			return raw
-				.then(configNew => {
-					this.save(type, configNew ?? config);
-					this.load(type);
+		if(result instanceof Promise) {
+			return result.then(dataNew => {
+				this.save(type, this.packer(dataNew ?? dataOld, this));
+				this.load(type);
 
 
-					return this;
-				});
+				return this;
+			});
 		}
 
 
-		this.save(type, raw ?? config);
+		this.save(type, this.packer(result ?? dataOld, this));
 		this.load(type);
 
 
@@ -337,108 +682,88 @@ export class PoseidonProto {
 
 
 	/**
-	 * get available types
-	 * @returns {Array.<ConfigTypeRaw>}
+	 * Resolve all `_`-prefixed key values in a config/data object to absolute paths
+	 * @param {object} data
+	 * @returns {object}
 	 */
-	getTypesExist() {
-		const files = readdirSync(this.dirConfig);
+	absolutizePath(data) {
+		const regexPrefix = new RegExp(`^${this.optionsPathAbsolutize.prefix}`);
+
+		for(const [key, value] of Object.entries(data)) {
+			if(isObject(value)) { this.absolutizePath(value); continue; }
+
+			if(!regexPrefix.test(key) || typeof value != 'string') { continue; }
+
+			const keyTarget = key.replace(regexPrefix, '');
+			if(keyTarget in data && !this.optionsPathAbsolutize.overwrite) { continue; }
 
 
-		const regexDefault = new RegExp(`^\\.?${this.prefixFile}\\.jsonc?$`);
-		const regexConfig = new RegExp(`^\\.?${this.prefixFile}\\.(.*?)\\.jsonc?$`);
-		const regexBackup = new RegExp(`^\\.?${this.prefixFile}\\..*?\\.(\\d+)\\.backup\\.jsonc?$`);
+			data[keyTarget] = resolvePath(this.dirnData, this.optionsPathAbsolutize.path, value);
+		}
 
-
-		return files.map(file => {
-			const symbolHidden = file.startsWith('.') ? '.' : '';
-
-
-			if(regexDefault.test(file)) { return `${symbolHidden}_`; }
-
-			if(regexBackup.test(file)) { return; }
-
-
-			const type = file.match(regexConfig)?.[1];
-			return type ? `${symbolHidden}${type}` : undefined;
-		}).filter(type => type);
+		return data;
 	}
 
 
-
 	/**
-	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
-	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
-	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
+	 * Get available types
+	 * @param {boolean} [includeBackup = false]
+	 * @returns {string[]}
 	 */
-	constructor(dirConfig = process.cwd(), types = '', libJSON = 'comment-json') {
-		if(typeof types != 'string' && !(types instanceof Array)) {
-			throw TypeError(T('invalid-argument-types', { types }));
-		}
-
-		if(typeof dirConfig != 'string') {
-			throw TypeError(T('invalid-argument-dir-config', { dirConfig }));
-		}
-
-		if(libJSON == 'json') {
-			this.parseJSON = JSON.parse;
-			this.stringifyJSON = JSON.stringify;
-		}
+	selectExistTypes(includeBackup = false) {
+		const files = readdirSync(this.dirnData);
 
 
-		this.dirConfig = dirConfig;
+		const regexTest = new RegExp(`^(?<hidden>\\.?)${EscapeStringRegexp(this.prefixFile)}(?:\\.backup(?<backup1>\\d+)|\\.(?<type>[^.]+)(?:\\.backup(?<backup2>\\d+))?)?(?<ext>${this.extensions.join('|')})$`);
 
 
-		this.proxy = new Proxy(this,
-			{
-				get(self, key) {
-					if(key == '$') { return self; }
+		const infos$type = {};
 
-					if(self.configs._ && key in self.configs._) { return self.configs._[key]; }
+		for(const file of files) {
+			const result = file.match(regexTest);
 
-					if(key in self.configs) { return self.configs[key]; }
+			if(result) {
+				const backup = result.groups.backup1 ?? result.groups.backup2 ? Number(result.groups.backup1 ?? result.groups.backup2) : false;
 
+				const info = infos$type[result.groups.type ?? '_'] ?? (infos$type[result.groups.type ?? '_'] = { files: [], backups: [] });
 
-					return self.load(key, true);
-				},
-				set(self, key, value) {
-					// would throw error in strict mode
-					if((function() { return !this; }())) {
-						throw Error(T('forbidden-set', { key, value }));
-					}
-				}
+				info[backup ? 'backups' : 'files'].push({
+					hidden: !!result.groups.hidden,
+					type: result.groups.type ?? '_',
+					backup,
+					ext: result.groups.ext,
+					file,
+				});
 			}
-		);
+		}
 
 
-		types.split(',').filter(type => type).forEach(type => this.load(type));
-
-
-		return this.proxy;
+		return infos$type;
 	}
 }
 
 
-/**
- * - all loaded configs are read-only and cannot be modified directly
- * - one JSON file as a configuration unit
- * - all configs storage in the same directory.
- * - default config is `config.json'. classified config is `config.*.json`
- * - `_` is the reserved slot of the default config
- * - `$` is the reserved slot too. it used to access Poseidon Object
- * - supports hot modification in file units
- */
-export class Poseidon {
-	/** @type {PoseidonProto} */
+/** @template DataType */
+export class PoseidonBox {
+	/**
+	 * Poseidon instance
+	 * @type {Poseidon<DataType>}
+	 */
 	$;
 
 
 
 	/**
-	 * @param {string} [dirConfig = process.cwd()] dir of configs. `process.cwd()` is default.
-	 * @param {string|Array.<ConfigTypeRaw|ConfigType>} [types = ''] types for preloading. splited by `,`. `_` is default.
-	 * @param {'json'|'comment-json'} [libJSON = 'comment-json'] lib to handle JSON
+	 * Create a Poseidon instance
+	 * @param {PoseidonOption<DataType>} [options]
 	 */
-	constructor(dirConfig = process.cwd(), types = '', libJSON) {
-		return new PoseidonProto(dirConfig, types, libJSON);
-	}
+	constructor(options) { return new Poseidon(options); }
 }
+
+
+/**
+ * Check whether the value is a Poseidon instance
+ * @param {any} value
+ * @returns {boolean}
+ */
+export function isPoseidon(value) { return value instanceof Poseidon; }

@@ -1,6 +1,6 @@
 {
 	"name": "@danor-lib/poseidon",
-	"version": "10.0.0",
+	"version": "10.0.1",
 	"description": "Type-based config library",
 	"author": "DanoR",
 	"license": "MIT",
@@ -19,6 +19,7 @@
 	},
 	"files": [
 		"index.js",
+		"src/**/*.js",
 		"types.ts",
 		"types/**"
 	],

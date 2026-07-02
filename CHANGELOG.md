@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v10.0.1 - 2026.07.02 15
+* fix: fix package.json
+
+
 ## v10.0.0 - 2026.07.02 14
 * refactor!: rename package from `@nuogz/poseidon` to `@danor-lib/poseidon`
 * docs: **IMPORTANT!** update license to ***MIT***

@@ -480,3 +480,34 @@ const store = new Poseidon({ dirn: './data', prefix: 'data' });
 // 构造时立即加载 config.json 和 config.apple.json
 const P = new Poseidon({ preloads: '_,apple' });
 ````
+
+## 错误代码
+
+| 代码                                | 位置                                                        | 描述                                                  | 上下文数据             |
+| ----------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
+| invalid-options                     | poseidon/Poseidon#constructor(options)                      | `options` 参数不是对象                                | { options }            |
+| invalid-prefix-file                 | poseidon/Poseidon#constructor(options.prefix)               | `prefix` 选项值类型无效（必须为字符串）               | { prefix }             |
+| invalid-dirn-data                   | poseidon/Poseidon#constructor(options.dirn)                 | `dirn` 选项值类型无效（必须为字符串）                 | { dirn }               |
+| invalid-preload                     | poseidon/Poseidon#constructor(options.preload)              | `preloads` 选项值类型无效（必须为字符串或数组）       | { types }              |
+| invalid-preload-type                | poseidon/Poseidon#constructor(options.preload)              | `preloads` 中某个元素类型无效（必须为字符串或数字）   | { type, types, index } |
+| invalid-parser                      | poseidon/Poseidon#constructor(options.parser)               | `parser` 选项值类型无效（必须为函数）                 | { parser }             |
+| invalid-packer                      | poseidon/Poseidon#constructor(options.packer)               | `packer` 选项值类型无效（必须为函数）                 | { packer }             |
+| invalid-extensions                  | poseidon/Poseidon#constructor(options.exts)                 | `exts` 选项值类型无效（必须为数组）                   | { extensions }         |
+| invalid-prefer-default              | poseidon/Poseidon#constructor(options.preferDefault)        | `preferDefault` 选项值类型无效（必须为布尔值）        | { preferDefault }      |
+| invalid-will-freeze                 | poseidon/Poseidon#constructor(options.willFreeze)           | `willFreeze` 选项值类型无效（必须为布尔值）           | { willFreeze }         |
+| invalid-absolutize-option           | poseidon/Poseidon#constructor(options.absolutize)           | `absolutize` 选项值类型无效（必须为对象）             | { absolutize }         |
+| invalid-absolutize-option-enable    | poseidon/Poseidon#constructor(options.absolutize.enable)    | `absolutize.enable` 选项值类型无效（必须为布尔值）    | { enable }             |
+| invalid-absolutize-option-prefix    | poseidon/Poseidon#constructor(options.absolutize.prefix)    | `absolutize.prefix` 选项值类型无效（必须为字符串）    | { prefix }             |
+| invalid-absolutize-option-overwrite | poseidon/Poseidon#constructor(options.absolutize.overwrite) | `absolutize.overwrite` 选项值类型无效（必须为布尔值） | { overwrite }          |
+| invalid-absolutize-option-path      | poseidon/Poseidon#constructor(options.absolutize.path)      | `absolutize.path` 选项值类型无效（必须为字符串）      | { path }               |
+| invalid-how-assign                  | poseidon/Poseidon#constructor(options.howAssign)            | `howAssign` 选项值无效，仅允许 `'ignore'` `'throw'`   | { howAssign }          |
+| invalid-type                        | poseidon/Poseidon#read(1:type)                              | `type` 参数类型无效（必须为字符串）                   | { type }               |
+| invalid-type                        | poseidon/Poseidon#load(type)                                | `type` 参数类型无效（必须为字符串）                   | { type }               |
+| invalid-type                        | poseidon/Poseidon#save(1:type)                              | `type` 参数类型无效（必须为字符串）                   | { type }               |
+| invalid-options                     | poseidon/Poseidon#save(3:options)                           | `save()` 的 `options` 参数不是对象                    | { options }            |
+| invalid-options-willBackup          | poseidon/Poseidon#save(3:options.willBackup)                | `willBackup` 选项值类型无效（必须为布尔值）           | { willBackup }         |
+| invalid-options-dirn-backup         | poseidon/Poseidon#save(3:options.dirnBackup)                | `dirnBackup` 选项值类型无效（必须为字符串）           | { dirnBackup }         |
+| invalid-options-pad-start-backup    | poseidon/Poseidon#save(3:options.padBackup)                 | `padBackup` 选项值类型无效（必须为字符串）            | { padBackup }          |
+| invalid-options-prefix              | poseidon/Poseidon#save(3:options.prefix)                    | `prefix` 选项值类型无效（必须为字符串）               | { prefix }             |
+| invalid-options-ext                 | poseidon/Poseidon#save(3:options.ext)                       | `ext` 选项值类型无效（必须为字符串）                  | { extension }          |
+| forbidden-set                       | poseidon/Poseidon#proxy.set                                 | 尝试对 Proxy 进行赋值操作（`howAssign` 为 `'throw'`） | { key, value }         |

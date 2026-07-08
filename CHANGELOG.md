@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v10.0.2 - 2026.07.08 15
+* fix: correct the `code` definitions for some RichError errors
+* docs: supplement the missing error code table
+* regular: bump up dependencies
+
+
 ## v10.0.1 - 2026.07.02 15
 * fix: fix package.json
 

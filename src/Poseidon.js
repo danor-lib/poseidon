@@ -280,7 +280,7 @@ export class Poseidon {
 		if(willFreeze != null) {
 			if(typeof willFreeze != 'boolean') {
 				throw new RichError({
-					code: 'invalid-prefer-default', at: 'poseidon/Poseidon#constructor(options.willFreeze)',
+					code: 'invalid-will-freeze', at: 'poseidon/Poseidon#constructor(options.willFreeze)',
 					data: { willFreeze },
 				});
 			}
@@ -564,7 +564,7 @@ export class Poseidon {
 		if(dirnBackup != null) {
 			if(typeof dirnBackup != 'string') {
 				throw new RichError({
-					code: 'invalid-options-dirn', at: 'poseidon/Poseidon#save(3:options.dirnBackup)',
+					code: 'invalid-options-dirn-backup', at: 'poseidon/Poseidon#save(3:options.dirnBackup)',
 					data: { dirnBackup },
 				});
 			}
@@ -578,7 +578,7 @@ export class Poseidon {
 		if(padStartBackup != null) {
 			if(typeof padStartBackup != 'string') {
 				throw new RichError({
-					code: 'invalid-options-dirn', at: 'poseidon/Poseidon#save(3:options.padBackup)',
+					code: 'invalid-options-pad-start-backup', at: 'poseidon/Poseidon#save(3:options.padBackup)',
 					data: { padBackup: padStartBackup },
 				});
 			}

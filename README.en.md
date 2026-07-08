@@ -479,3 +479,34 @@ If you need to load certain types immediately upon construction, use the `preloa
 // Load config.json and config.apple.json immediately on construction
 const P = new Poseidon({ preloads: '_,apple' });
 ````
+
+## Error Code
+
+| Code                                | At                                                          | Description                                                                    | Context Data           |
+| ----------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------- |
+| invalid-options                     | poseidon/Poseidon#constructor(options)                      | `options` parameter is not an object                                           | { options }            |
+| invalid-prefix-file                 | poseidon/Poseidon#constructor(options.prefix)               | `prefix` option value has invalid type (must be a string)                      | { prefix }             |
+| invalid-dirn-data                   | poseidon/Poseidon#constructor(options.dirn)                 | `dirn` option value has invalid type (must be a string)                        | { dirn }               |
+| invalid-preload                     | poseidon/Poseidon#constructor(options.preload)              | `preloads` option value has invalid type (must be a string or array)           | { types }              |
+| invalid-preload-type                | poseidon/Poseidon#constructor(options.preload)              | An element in `preloads` has invalid type (must be a string or number)         | { type, types, index } |
+| invalid-parser                      | poseidon/Poseidon#constructor(options.parser)               | `parser` option value has invalid type (must be a function)                    | { parser }             |
+| invalid-packer                      | poseidon/Poseidon#constructor(options.packer)               | `packer` option value has invalid type (must be a function)                    | { packer }             |
+| invalid-extensions                  | poseidon/Poseidon#constructor(options.exts)                 | `exts` option value has invalid type (must be an array)                        | { extensions }         |
+| invalid-prefer-default              | poseidon/Poseidon#constructor(options.preferDefault)        | `preferDefault` option value has invalid type (must be a boolean)              | { preferDefault }      |
+| invalid-will-freeze                 | poseidon/Poseidon#constructor(options.willFreeze)           | `willFreeze` option value has invalid type (must be a boolean)                 | { willFreeze }         |
+| invalid-absolutize-option           | poseidon/Poseidon#constructor(options.absolutize)           | `absolutize` option value has invalid type (must be an object)                 | { absolutize }         |
+| invalid-absolutize-option-enable    | poseidon/Poseidon#constructor(options.absolutize.enable)    | `absolutize.enable` option value has invalid type (must be a boolean)          | { enable }             |
+| invalid-absolutize-option-prefix    | poseidon/Poseidon#constructor(options.absolutize.prefix)    | `absolutize.prefix` option value has invalid type (must be a string)           | { prefix }             |
+| invalid-absolutize-option-overwrite | poseidon/Poseidon#constructor(options.absolutize.overwrite) | `absolutize.overwrite` option value has invalid type (must be a boolean)       | { overwrite }          |
+| invalid-absolutize-option-path      | poseidon/Poseidon#constructor(options.absolutize.path)      | `absolutize.path` option value has invalid type (must be a string)             | { path }               |
+| invalid-how-assign                  | poseidon/Poseidon#constructor(options.howAssign)            | `howAssign` option value is invalid, only `'ignore'` and `'throw'` are allowed | { howAssign }          |
+| invalid-type                        | poseidon/Poseidon#read(1:type)                              | `type` parameter has invalid type (must be a string)                           | { type }               |
+| invalid-type                        | poseidon/Poseidon#load(type)                                | `type` parameter has invalid type (must be a string)                           | { type }               |
+| invalid-type                        | poseidon/Poseidon#save(1:type)                              | `type` parameter has invalid type (must be a string)                           | { type }               |
+| invalid-options                     | poseidon/Poseidon#save(3:options)                           | `save()` `options` parameter is not an object                                  | { options }            |
+| invalid-options-willBackup          | poseidon/Poseidon#save(3:options.willBackup)                | `willBackup` option value has invalid type (must be a boolean)                 | { willBackup }         |
+| invalid-options-dirn-backup         | poseidon/Poseidon#save(3:options.dirnBackup)                | `dirnBackup` option value has invalid type (must be a string)                  | { dirnBackup }         |
+| invalid-options-pad-start-backup    | poseidon/Poseidon#save(3:options.padBackup)                 | `padBackup` option value has invalid type (must be a string)                   | { padBackup }          |
+| invalid-options-prefix              | poseidon/Poseidon#save(3:options.prefix)                    | `prefix` option value has invalid type (must be a string)                      | { prefix }             |
+| invalid-options-ext                 | poseidon/Poseidon#save(3:options.ext)                       | `ext` option value has invalid type (must be a string)                         | { extension }          |
+| forbidden-set                       | poseidon/Poseidon#proxy.set                                 | Attempted to assign a value to the Proxy (`howAssign` is `'throw'`)            | { key, value }         |

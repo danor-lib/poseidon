@@ -148,6 +148,8 @@ declare module '@danor-lib/poseidon' {
     readonly 'boy': { name: string; age: number; };
   }
 }
+
+export { }; // 将文件标记为模块
 ````
 
 这样在编辑器中访问 `P.apple` 时就能获得完整的类型提示。

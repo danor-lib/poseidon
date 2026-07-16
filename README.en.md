@@ -147,6 +147,8 @@ declare module '@danor-lib/poseidon' {
     readonly 'boy': { name: string; age: number; };
   }
 }
+
+export { }; // Marks the file as a module
 ````
 
 This way, accessing `P.apple` in the editor provides full type hints.

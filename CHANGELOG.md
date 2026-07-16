@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v10.0.4 - 2026.07.16 10
+## v10.0.5 - 2026.07.16 11
+* docs: fix the incorrect declare object in the README example code
+
+
+## v10.0.4 - 2026.07.16 11
 * docs: improve the example code in README
 
 

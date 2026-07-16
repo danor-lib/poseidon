@@ -143,7 +143,7 @@ config/
 
 ````typescript
 declare module '@danor-lib/poseidon' {
-  interface PoseidonBox {
+  interface Poseidon {
     readonly 'apple': { color: string; price: number; };
     readonly 'boy': { name: string; age: number; };
   }

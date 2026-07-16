@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v10.0.3 - 2026.07.16 10
+* improve: unify the import file extension for `types.ts` to `.ts` when it is imported
+* regular: bump up dependencies
+
+
 ## v10.0.2 - 2026.07.08 15
 * fix: correct the `code` definitions for some RichError errors
 * docs: supplement the missing error code table

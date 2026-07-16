@@ -1,4 +1,4 @@
-import type { AbsolutizePathOption, PoseidonOption, SaveOption, EditHandle } from '../types.js';
+import type { AbsolutizePathOption, PoseidonOption, SaveOption, EditHandle } from '../types.ts';
 
 
 

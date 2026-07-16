@@ -1,7 +1,7 @@
-export type { AbsolutizePathOption } from './types.js';
-export type { PoseidonOption } from './types.js';
-export type { SaveOption } from './types.js';
-export type { EditHandle } from './types.js';
+export type { AbsolutizePathOption } from './types.ts';
+export type { PoseidonOption } from './types.ts';
+export type { SaveOption } from './types.ts';
+export type { EditHandle } from './types.ts';
 
 export { PoseidonBox as Poseidon } from './src/Poseidon.js';
 export { Poseidon as Poseidon_ } from './src/Poseidon.js';

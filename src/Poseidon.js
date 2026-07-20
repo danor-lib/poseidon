@@ -203,7 +203,7 @@ export class Poseidon {
 
 			if(typeType == 'string') { return type.trim(); }
 
-			if(typeType == 'number' && !Number.isNaN(typeType)) { return String(type); }
+			if(typeType == 'number' && !Number.isNaN(type)) { return String(type); }
 
 			if(type == null) { return null; }
 
@@ -248,7 +248,7 @@ export class Poseidon {
 
 		const extensions = options.exts;
 		if(extensions != null) {
-			if(typeof extensions != 'function') {
+			if(!Array.isArray(typesPreload)) {
 				throw new RichError({
 					code: 'invalid-extensions', at: 'poseidon/Poseidon#constructor(options.exts)',
 					data: { extensions },

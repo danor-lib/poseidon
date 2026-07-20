@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v10.0.6 - 2026.07.20 13
+* fix: correct the condition check of the `exts` parameter in the `Poseidon` constructor
+* docs: improve the issue where some reputations are incorrectly marked as required
+
+
 ## v10.0.5 - 2026.07.16 11
 * docs: fix the incorrect declare object in the README example code
 

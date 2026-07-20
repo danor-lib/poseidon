@@ -51,7 +51,7 @@ export type PoseidonOption<DataType> = {
 
 
 	/** The behavior when assigning config/data. Default is `throw` */
-	howAssign: 'throw' | 'ignore';
+	howAssign?: 'throw' | 'ignore';
 };
 
 
